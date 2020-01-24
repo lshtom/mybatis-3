@@ -264,6 +264,15 @@
       <version>2.5</version>
       <scope>test</scope>
     </dependency>
+
+    <!--MySQL驱动依赖，用于单元测试MyBatis-->
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>8.0.13</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
