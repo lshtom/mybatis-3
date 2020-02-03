@@ -15,12 +15,11 @@
  */
 package org.apache.ibatis.parsing;
 
-import java.io.InputStream;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import org.apache.ibatis.builder.BuilderException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.*;
 
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
@@ -28,16 +27,12 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
-
-import org.apache.ibatis.builder.BuilderException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.EntityResolver;
-import org.xml.sax.ErrorHandler;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 /**
  * @author Clinton Begin
@@ -140,6 +135,7 @@ public class XPathParser {
 
   public String evalString(Object root, String expression) {
     String result = (String) evaluate(expression, root, XPathConstants.STRING);
+    // 处理节点中相应的默认值
     result = PropertyParser.parse(result, variables);
     return result;
   }
@@ -206,6 +202,10 @@ public class XPathParser {
   }
 
   public XNode evalNode(String expression) {
+    // Tips：此处多写了一个evalNode的重载方法，
+    // 这个两参数的重载方法中可接收外部传入的Document对象实例，
+    // 而不是直接使用实例变量document，
+    // 原因就在于：提供一个能力，让外界能够处理指定的Document，而不是默认的Document，增加了灵活性。
     return evalNode(document, expression);
   }
 
@@ -214,6 +214,7 @@ public class XPathParser {
     if (node == null) {
       return null;
     }
+    // XNode其实是在org.w3c.dom.Node对象的基础上，封装了更多的信息
     return new XNode(this, node, variables);
   }
 

@@ -17,3 +17,4 @@
  * Parsing utils
  */
 package org.apache.ibatis.parsing;
+// 说明：package-info.java的作用是为包级文档、包级别注释提供一个地方。

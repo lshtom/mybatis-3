@@ -44,6 +44,7 @@ public class PropertyParser {
   public static final String KEY_DEFAULT_VALUE_SEPARATOR = KEY_PREFIX + "default-value-separator";
 
   private static final String ENABLE_DEFAULT_VALUE = "false";
+  // 默认的值分割字符
   private static final String DEFAULT_VALUE_SEPARATOR = ":";
 
   private PropertyParser() {
@@ -52,6 +53,7 @@ public class PropertyParser {
 
   public static String parse(String string, Properties variables) {
     VariableTokenHandler handler = new VariableTokenHandler(variables);
+    // 此处创建GenericTokenParser，委托GenericTokenParser的parse方法进行解析
     GenericTokenParser parser = new GenericTokenParser("${", "}", handler);
     return parser.parse(string);
   }
@@ -64,6 +66,7 @@ public class PropertyParser {
     private VariableTokenHandler(Properties variables) {
       this.variables = variables;
       this.enableDefaultValue = Boolean.parseBoolean(getPropertyValue(KEY_ENABLE_DEFAULT_VALUE, ENABLE_DEFAULT_VALUE));
+      // 默认的分隔符是“:”
       this.defaultValueSeparator = getPropertyValue(KEY_DEFAULT_VALUE_SEPARATOR, DEFAULT_VALUE_SEPARATOR);
     }
 
@@ -73,23 +76,40 @@ public class PropertyParser {
 
     @Override
     public String handleToken(String content) {
+      // 说明：variables为Properties类型，
+      // 其中包含了所配置的各种属性值，值的来源可为xxx.properties文件，
+      // 比如xxx.properties文件中的:
+      // username=root;
+      // password=admin;
+      // 而在mybatis-config.xml文件中可能使用了${username}或${username:hello}，
+      // 后者与前者的区别是后者还指定了一个默认值，
+      // 那么该方法的逻辑就是以${username}中的username为Key去属性variables中查找相应的值，
+      // 当然如果查找不到，且当前指定了默认值（${username:hello}），那么则使用默认值，
+      // 否则返回的都是variables中的值。
+
       if (variables != null) {
         String key = content;
         if (enableDefaultValue) {
           final int separatorIndex = content.indexOf(defaultValueSeparator);
           String defaultValue = null;
+          // separatorIndex大于等于0，意味着是${xxx:yyyy}的情形
           if (separatorIndex >= 0) {
+            // 获取占位符中的Key，如${username:hello}中的“username”
             key = content.substring(0, separatorIndex);
+            // 获取默认值，即如${username:hello}中的“hello”
             defaultValue = content.substring(separatorIndex + defaultValueSeparator.length());
           }
           if (defaultValue != null) {
+            // 尝试从variables中根据Key获取相应的属性值，如果获取不到则返回默认值
             return variables.getProperty(key, defaultValue);
           }
         }
+        // 没有默认值，则如果variables中有该Key，则尝试获取并返回
         if (variables.containsKey(key)) {
           return variables.getProperty(key);
         }
       }
+      // 最差情况，完全找不到这样的属性，则再加回open token、close token后返回
       return "${" + content + "}";
     }
   }
