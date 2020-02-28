@@ -27,6 +27,8 @@ public final class PropertyCopier {
   }
 
   public static void copyBeanProperties(Class<?> type, Object sourceBean, Object destinationBean) {
+    // 说明：主要实现两个相同类型对象之间的属性值拷贝
+
     Class<?> parent = type;
     while (parent != null) {
       final Field[] fields = parent.getDeclaredFields();

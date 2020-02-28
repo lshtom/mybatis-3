@@ -15,6 +15,11 @@
  */
 package org.apache.ibatis.type;
 
+import org.apache.ibatis.binding.MapperMethod.ParamMap;
+import org.apache.ibatis.io.ResolverUtil;
+import org.apache.ibatis.io.Resources;
+import org.apache.ibatis.reflection.Jdk;
+
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.Constructor;
@@ -22,31 +27,11 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Month;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
-import java.time.Year;
-import java.time.YearMonth;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.chrono.JapaneseDate;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.ibatis.binding.MapperMethod.ParamMap;
-import org.apache.ibatis.io.ResolverUtil;
-import org.apache.ibatis.io.Resources;
-import org.apache.ibatis.reflection.Jdk;
 
 /**
  * @author Clinton Begin
@@ -54,11 +39,22 @@ import org.apache.ibatis.reflection.Jdk;
  */
 public final class TypeHandlerRegistry {
 
+  /**
+   * TypeHandler是用于处理Java和Jdbc类型之间的转换的（Java->Jdbc,Jdbc->Java），
+   * 所以注册TypeHandler必然涉及3个内容：Java类型、Jdbc类型、TypeHandler类型。
+   */
+
+
+  // 记录JdbcType与TypeHandler之间的对应关系，其中JdbcType是一个枚举类型（定义了对应的JDBC类型）
+  // 该集合主要用于从结果集中读取数据，然后利用TypeHandler将数据从夫JDBC类型转换为相应的Java类型
   private final Map<JdbcType, TypeHandler<?>> JDBC_TYPE_HANDLER_MAP = new EnumMap<JdbcType, TypeHandler<?>>(JdbcType.class);
+  // 记录了从Java类型转换到Jdbc类型所需要的TypeHandler，由于一个Java类型可以转换成多个Jdbc类型（比如String可以转到char、varchar、text等）,所以这是一对多
   private final Map<Type, Map<JdbcType, TypeHandler<?>>> TYPE_HANDLER_MAP = new ConcurrentHashMap<Type, Map<JdbcType, TypeHandler<?>>>();
   private final TypeHandler<Object> UNKNOWN_TYPE_HANDLER = new UnknownTypeHandler(this);
-  private final Map<Class<?>, TypeHandler<?>> ALL_TYPE_HANDLERS_MAP = new HashMap<Class<?>, TypeHandler<?>>();
+  // 记录了全部的TypeHandler类型
+  private final Map<Class<?>, TypeHandler<?>> ALL_TYPE_HANDLERS_MAP= new HashMap<Class<?>, TypeHandler<?>>();
 
+  // 空TypeHandler集合的标识
   private static final Map<JdbcType, TypeHandler<?>> NULL_TYPE_HANDLER_MAP = Collections.emptyMap();
 
   private Class<? extends TypeHandler> defaultEnumTypeHandler = EnumTypeHandler.class;
@@ -217,18 +213,22 @@ public final class TypeHandlerRegistry {
 
   @SuppressWarnings("unchecked")
   private <T> TypeHandler<T> getTypeHandler(Type type, JdbcType jdbcType) {
+    // 说明：主要是根据Java类型和JdbcType去查找并初始化相应的TypeHandler
     if (ParamMap.class.equals(type)) {
       return null;
     }
+    // 先根据Java类型去获取TypeHandler集合
     Map<JdbcType, TypeHandler<?>> jdbcHandlerMap = getJdbcHandlerMap(type);
     TypeHandler<?> handler = null;
     if (jdbcHandlerMap != null) {
+      // 再根据Jdbc类型去进一步获取到相应的TypeHandler
       handler = jdbcHandlerMap.get(jdbcType);
       if (handler == null) {
         handler = jdbcHandlerMap.get(null);
       }
       if (handler == null) {
         // #591
+        // 可能整个jdbcHandlerMap中就只注册了一个TypeHandler
         handler = pickSoleHandler(jdbcHandlerMap);
       }
     }
@@ -241,18 +241,23 @@ public final class TypeHandlerRegistry {
     if (NULL_TYPE_HANDLER_MAP.equals(jdbcHandlerMap)) {
       return null;
     }
+    // 针对jdbcHandlerMap为空进行处理
     if (jdbcHandlerMap == null && type instanceof Class) {
       Class<?> clazz = (Class<?>) type;
       if (clazz.isEnum()) {
+        // 尝试获取
         jdbcHandlerMap = getJdbcHandlerMapForEnumInterfaces(clazz, clazz);
         if (jdbcHandlerMap == null) {
           register(clazz, getInstance(clazz, defaultEnumTypeHandler));
           return TYPE_HANDLER_MAP.get(clazz);
         }
       } else {
+        // 尝试获取
         jdbcHandlerMap = getJdbcHandlerMapForSuperclass(clazz);
       }
     }
+    // 此处之所以又将jdbcHandlerMap存回TYPE_HANDLER_MAP中，
+    // 原因是：前面获取到的jdbcHandlerMap可能为空，但经过了上面代码的处理，已经获取到相应的值了，所以需要存回TYPE_HANDLER_MAP
     TYPE_HANDLER_MAP.put(type, jdbcHandlerMap == null ? NULL_TYPE_HANDLER_MAP : jdbcHandlerMap);
     return jdbcHandlerMap;
   }
@@ -318,15 +323,20 @@ public final class TypeHandlerRegistry {
 
   @SuppressWarnings("unchecked")
   public <T> void register(TypeHandler<T> typeHandler) {
+    // 说明：@MappedTypes注解用于标注在TypeHandler实现类上，用于指明当前TypeHandler所能处理的Java类型的集合
+
     boolean mappedTypeFound = false;
     MappedTypes mappedTypes = typeHandler.getClass().getAnnotation(MappedTypes.class);
     if (mappedTypes != null) {
       for (Class<?> handledType : mappedTypes.value()) {
+        // 注册Java类型和相应的TypeHandler
         register(handledType, typeHandler);
         mappedTypeFound = true;
       }
     }
     // @since 3.1.0 - try to auto-discover the mapped type
+    // 从3.1.0版本开始，如果TypeHandler实现类没有使用@MappedTypes注解指明相应的Java类型的话，
+    // 还可以自动去尝试获取相应的所能处理的Java类型，但前提是TypeHandler实现类除了实现了TypeHandler接口外，还要继承TypeReference。
     if (!mappedTypeFound && typeHandler instanceof TypeReference) {
       try {
         TypeReference<T> typeReference = (TypeReference<T>) typeHandler;
@@ -348,6 +358,8 @@ public final class TypeHandlerRegistry {
   }
 
   private <T> void register(Type javaType, TypeHandler<? extends T> typeHandler) {
+    // 说明：@MappedJdbcTypes注解也是用于标注在TypeHandler实现类上，用于指明当前TypeHandler所能处理的Jdbc类型
+
     MappedJdbcTypes mappedJdbcTypes = typeHandler.getClass().getAnnotation(MappedJdbcTypes.class);
     if (mappedJdbcTypes != null) {
       for (JdbcType handledJdbcType : mappedJdbcTypes.value()) {

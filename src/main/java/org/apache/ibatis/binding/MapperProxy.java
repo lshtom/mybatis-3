@@ -15,6 +15,10 @@
  */
 package org.apache.ibatis.binding;
 
+import org.apache.ibatis.lang.UsesJava7;
+import org.apache.ibatis.reflection.ExceptionUtil;
+import org.apache.ibatis.session.SqlSession;
+
 import java.io.Serializable;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
@@ -23,10 +27,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Map;
 
-import org.apache.ibatis.lang.UsesJava7;
-import org.apache.ibatis.reflection.ExceptionUtil;
-import org.apache.ibatis.session.SqlSession;
-
 /**
  * @author Clinton Begin
  * @author Eduardo Macarron
@@ -34,8 +34,13 @@ import org.apache.ibatis.session.SqlSession;
 public class MapperProxy<T> implements InvocationHandler, Serializable {
 
   private static final long serialVersionUID = -6424540398559729838L;
+  // 记录关联的SqlSession对象
   private final SqlSession sqlSession;
+  // 记录Mapper接口对应的Class对象
   private final Class<T> mapperInterface;
+  // 缓存，Key是Mapper接口中某方法对应的Method对象，value是对应的MapperMethod对象，
+  // MapperMethod对象会完成参数转换以及SQL语句的执行功能，
+  // 需要注意的是，MapperMethod中并不记录任何状态相关的信息，所以可以在多个代理对象中共用
   private final Map<Method, MapperMethod> methodCache;
 
   public MapperProxy(SqlSession sqlSession, Class<T> mapperInterface, Map<Method, MapperMethod> methodCache) {
@@ -47,20 +52,29 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
     try {
+      // 情形一：如果当前所调用的目标方法是来自Object的方法，那就直接调用该目标方法，不做任何处理
       if (Object.class.equals(method.getDeclaringClass())) {
         return method.invoke(this, args);
-      } else if (isDefaultMethod(method)) {
+      }
+      // 情形二：主要是针对Java7以上版本对动态类型语言的支持
+      else if (isDefaultMethod(method)) {
         return invokeDefaultMethod(proxy, method, args);
       }
     } catch (Throwable t) {
       throw ExceptionUtil.unwrapThrowable(t);
     }
+    // 情形三：调用的是Mapper接口中的方法
+    // 先尝试从缓存中获取MapperMethod对象，如果缓存中没有，则创建新的MapperMethod对象并添加到缓存中
     final MapperMethod mapperMethod = cachedMapperMethod(method);
+    // 执行Mapper方法所对应的SQL语句
     return mapperMethod.execute(sqlSession, args);
   }
 
   private MapperMethod cachedMapperMethod(Method method) {
+    // 说明：该方法主要是在维护methodCache
+    // 步骤1：先尝试获取MapperMethod对象
     MapperMethod mapperMethod = methodCache.get(method);
+    // 步骤2：若methodCache缓存中没有，则进行创建并放入到缓存中
     if (mapperMethod == null) {
       mapperMethod = new MapperMethod(mapperInterface, method, sqlSession.getConfiguration());
       methodCache.put(method, mapperMethod);

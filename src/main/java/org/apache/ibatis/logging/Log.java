@@ -18,6 +18,7 @@ package org.apache.ibatis.logging;
 /**
  * @author Clinton Begin
  */
+// 说明：该接口在【适配器模式】中扮演了Target角色，具体的适配器将实现该接口
 public interface Log {
 
   boolean isDebugEnabled();

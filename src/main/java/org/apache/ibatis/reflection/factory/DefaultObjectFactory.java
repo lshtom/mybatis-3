@@ -15,20 +15,11 @@
  */
 package org.apache.ibatis.reflection.factory;
 
+import org.apache.ibatis.reflection.ReflectionException;
+
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
-
-import org.apache.ibatis.reflection.ReflectionException;
+import java.util.*;
 
 /**
  * @author Clinton Begin
@@ -58,6 +49,7 @@ public class DefaultObjectFactory implements ObjectFactory, Serializable {
   private  <T> T instantiateClass(Class<T> type, List<Class<?>> constructorArgTypes, List<Object> constructorArgs) {
     try {
       Constructor<T> constructor;
+      // 情形一：利用无参构造器进行对象实例构建
       if (constructorArgTypes == null || constructorArgs == null) {
         constructor = type.getDeclaredConstructor();
         if (!constructor.isAccessible()) {
@@ -65,10 +57,13 @@ public class DefaultObjectFactory implements ObjectFactory, Serializable {
         }
         return constructor.newInstance();
       }
+      // 情形二：利用有参构造器进行对象实例构建
+      // 根据构造器参数类型获取相应的构造器
       constructor = type.getDeclaredConstructor(constructorArgTypes.toArray(new Class[constructorArgTypes.size()]));
       if (!constructor.isAccessible()) {
         constructor.setAccessible(true);
       }
+      // 调用相应的构造器进行对象实例创建
       return constructor.newInstance(constructorArgs.toArray(new Object[constructorArgs.size()]));
     } catch (Exception e) {
       StringBuilder argTypes = new StringBuilder();

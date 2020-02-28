@@ -15,14 +15,14 @@
  */
 package org.apache.ibatis.io;
 
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.logging.LogFactory;
+
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 
 /**
  * <p>ResolverUtil is used to locate classes that are available in the/a class path and meet
@@ -66,6 +66,7 @@ public class ResolverUtil<T> {
    * A simple interface that specifies how to test classes to determine if they
    * are to be included in the results produced by the ResolverUtil.
    */
+  // 说明：主要用于判断类型是否匹配（包括接口类型、类类型、注解类型等）
   public interface Test {
     /**
      * Will be called repeatedly with candidate classes. Must return True if a class
@@ -78,6 +79,7 @@ public class ResolverUtil<T> {
    * A Test that checks to see if each class is assignable to the provided class. Note
    * that this test will match the parent type itself if it is presented for matching.
    */
+  // 说明：Test接口实现类，主要用于判断是否满足is-a关系
   public static class IsA implements Test {
     private Class<?> parent;
 
@@ -102,6 +104,7 @@ public class ResolverUtil<T> {
    * A Test that checks to see if each class is annotated with a specific annotation. If it
    * is, then the test returns true, otherwise false.
    */
+  // 说明：另一个Test接口实现类，用于判断当前类型上是否标注了xxx注解
   public static class AnnotatedWith implements Test {
     private Class<? extends Annotation> annotation;
 
@@ -214,12 +217,17 @@ public class ResolverUtil<T> {
    *        classes, e.g. {@code net.sourceforge.stripes}
    */
   public ResolverUtil<T> find(Test test, String packageName) {
+    // 根据报名获取对应的路径，其实就是做一个字符串替换而已，将.替换成/
     String path = getPackagePath(packageName);
 
     try {
+      // 通过VFS.list()查找包名下的所有资源
       List<String> children = VFS.getInstance().list(path);
       for (String child : children) {
+        // 包名路径下可能有很多资源，但此处我们需要的是class文件
         if (child.endsWith(".class")) {
+          // 注意第一个入参为Test接口实现类，
+          // 所以这addIfMatching方法的逻辑是只有符合Test条件的类才会被加入matches属性中
           addIfMatching(test, child);
         }
       }
@@ -250,14 +258,17 @@ public class ResolverUtil<T> {
   @SuppressWarnings("unchecked")
   protected void addIfMatching(Test test, String fqn) {
     try {
+      // 注:fqn是类全限定名所对应的路径名(以/为分隔),所以下面这行代码是将/转换回.,以便后面类加载器进行加载
       String externalName = fqn.substring(0, fqn.indexOf('.')).replace('/', '.');
       ClassLoader loader = getClassLoader();
       if (log.isDebugEnabled()) {
         log.debug("Checking to see if class " + externalName + " matches criteria [" + test + "]");
       }
 
+      // 加载指定的类
       Class<?> type = loader.loadClass(externalName);
       if (test.matches(type)) {
+        // 将符合条件的类记录到matches集合中
         matches.add((Class<T>) type);
       }
     } catch (Throwable t) {

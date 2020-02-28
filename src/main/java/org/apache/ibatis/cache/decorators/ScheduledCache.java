@@ -15,9 +15,9 @@
  */
 package org.apache.ibatis.cache.decorators;
 
-import java.util.concurrent.locks.ReadWriteLock;
-
 import org.apache.ibatis.cache.Cache;
+
+import java.util.concurrent.locks.ReadWriteLock;
 
 /**
  * @author Clinton Begin
@@ -88,6 +88,7 @@ public class ScheduledCache implements Cache {
   }
 
   private boolean clearWhenStale() {
+    // 其实并不是定时任务，只是在每次被调用时进行判断是否超时了，超过了就进行清除
     if (System.currentTimeMillis() - lastClear > clearInterval) {
       clear();
       return true;

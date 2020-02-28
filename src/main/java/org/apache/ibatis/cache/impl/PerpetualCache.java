@@ -15,20 +15,23 @@
  */
 package org.apache.ibatis.cache.impl;
 
+import org.apache.ibatis.cache.Cache;
+import org.apache.ibatis.cache.CacheException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 
-import org.apache.ibatis.cache.Cache;
-import org.apache.ibatis.cache.CacheException;
-
 /**
  * @author Clinton Begin
  */
+// 在装饰器模式下扮演ConcreteComponent角色
 public class PerpetualCache implements Cache {
 
+  // Cache对象的唯一标识
   private final String id;
 
+  // 直接使用Map做缓存
   private Map<Object, Object> cache = new HashMap<Object, Object>();
 
   public PerpetualCache(String id) {

@@ -15,21 +15,18 @@
  */
 package org.apache.ibatis.reflection;
 
+import org.apache.ibatis.reflection.factory.ObjectFactory;
+import org.apache.ibatis.reflection.property.PropertyTokenizer;
+import org.apache.ibatis.reflection.wrapper.*;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.ibatis.reflection.factory.ObjectFactory;
-import org.apache.ibatis.reflection.property.PropertyTokenizer;
-import org.apache.ibatis.reflection.wrapper.BeanWrapper;
-import org.apache.ibatis.reflection.wrapper.CollectionWrapper;
-import org.apache.ibatis.reflection.wrapper.MapWrapper;
-import org.apache.ibatis.reflection.wrapper.ObjectWrapper;
-import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
-
 /**
  * @author Clinton Begin
  */
+// 说明：这是对象级别的元信息解析及封装处理
 public class MetaObject {
 
   private final Object originalObject;
@@ -57,6 +54,9 @@ public class MetaObject {
     }
   }
 
+  /**
+   * 使用此静态方法去创建MetaObject对象实例
+   */
   public static MetaObject forObject(Object object, ObjectFactory objectFactory, ObjectWrapperFactory objectWrapperFactory, ReflectorFactory reflectorFactory) {
     if (object == null) {
       return SystemMetaObject.NULL_META_OBJECT;
@@ -80,6 +80,10 @@ public class MetaObject {
   public Object getOriginalObject() {
     return originalObject;
   }
+
+  /**
+   * 下面这些类级别的方法，其内部本质都是通过MetaClass的相关方法来实现的
+   */
 
   public String findProperty(String propName, boolean useCamelCaseMapping) {
     return objectWrapper.findProperty(propName, useCamelCaseMapping);
@@ -109,16 +113,25 @@ public class MetaObject {
     return objectWrapper.hasGetter(name);
   }
 
+  /**
+   * 下面是对象级别的方法，都是通过于ObjectWrapper的配合实现
+   */
+
   public Object getValue(String name) {
+    // 说明：此处要获取的是最末级的属性（叶子属性）的值
+
     PropertyTokenizer prop = new PropertyTokenizer(name);
+    // 判断是否有子表达式
     if (prop.hasNext()) {
       MetaObject metaValue = metaObjectForProperty(prop.getIndexedName());
       if (metaValue == SystemMetaObject.NULL_META_OBJECT) {
         return null;
       } else {
+        // 递归处理子表达式，直到没有子表达式，也就是到达了最末级属性
         return metaValue.getValue(prop.getChildren());
       }
     } else {
+      // 没有子表达式了，那么当前属性就已经是最末级了
       return objectWrapper.get(prop);
     }
   }

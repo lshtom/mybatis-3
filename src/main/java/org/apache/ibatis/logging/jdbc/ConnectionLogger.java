@@ -15,15 +15,15 @@
  */
 package org.apache.ibatis.logging.jdbc;
 
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.reflection.ExceptionUtil;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.reflection.ExceptionUtil;
 
 /**
  * Connection proxy to add logging
@@ -36,6 +36,7 @@ public final class ConnectionLogger extends BaseJdbcLogger implements Invocation
 
   private final Connection connection;
 
+  // 私有构造方法，只能在静态方法newInstance中被调用
   private ConnectionLogger(Connection conn, Log statementLog, int queryStack) {
     super(statementLog, queryStack);
     this.connection = conn;
@@ -45,11 +46,16 @@ public final class ConnectionLogger extends BaseJdbcLogger implements Invocation
   public Object invoke(Object proxy, Method method, Object[] params)
       throws Throwable {
     try {
+      // 情形一：如果当前调用的是从Object继承过来的方法，则直接调用，不做任何处理
       if (Object.class.equals(method.getDeclaringClass())) {
         return method.invoke(this, params);
-      }    
+      }
+      // 情形二：如果调用的是preparedStatement()方法、prepareCall()方法或createStatement()方法，
+      // 则在创建相应的Statement对象后，为其创建代理对象并返回该代理对象。
+      // Tips：MyBatis实现SQL日志打印的思路就是在此：在代理逻辑中进行SQL日志打印，同时继续调用原来的方法完成该完成的事情
       if ("prepareStatement".equals(method.getName())) {
         if (isDebugEnabled()) {
+          // 日志打印
           debug(" Preparing: " + removeBreakingWhitespace((String) params[0]), true);
         }        
         PreparedStatement stmt = (PreparedStatement) method.invoke(connection, params);
@@ -83,6 +89,7 @@ public final class ConnectionLogger extends BaseJdbcLogger implements Invocation
   public static Connection newInstance(Connection conn, Log statementLog, int queryStack) {
     InvocationHandler handler = new ConnectionLogger(conn, statementLog, queryStack);
     ClassLoader cl = Connection.class.getClassLoader();
+    // 创建代理对象实例（使用JDK动态代理）
     return (Connection) Proxy.newProxyInstance(cl, new Class[]{Connection.class}, handler);
   }
 

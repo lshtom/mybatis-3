@@ -38,24 +38,27 @@ import java.util.concurrent.locks.ReadWriteLock;
  *
  * @author Clinton Begin
  */
-
+// 说明：该Cache接口在装饰器模式中扮演了Component角色
 public interface Cache {
 
   /**
    * @return The identifier of this cache
    */
+  // 该缓存对象的id
   String getId();
 
   /**
    * @param key Can be any object but usually it is a {@link CacheKey}
    * @param value The result of a select.
    */
+  // 向缓存中添加数据，一般情况下，Key是CacheKey，Value是查询结果
   void putObject(Object key, Object value);
 
   /**
    * @param key The key
    * @return The object stored in the cache.
    */
+  // 根据指定的Key，在缓存中查找对应的结果对象
   Object getObject(Object key);
 
   /**
@@ -72,11 +75,13 @@ public interface Cache {
    * @param key The key
    * @return Not used
    */
+  // 删除Key对应的缓存项
   Object removeObject(Object key);
 
   /**
    * Clears this cache instance
-   */  
+   */
+  // 清空缓存
   void clear();
 
   /**
@@ -84,6 +89,7 @@ public interface Cache {
    * 
    * @return The number of elements stored in the cache (not its capacity).
    */
+  // 获取缓存项的个数，该方法不会被MyBatis核心代码使用，所以可提供空实现
   int getSize();
   
   /** 
@@ -93,6 +99,7 @@ public interface Cache {
    * 
    * @return A ReadWriteLock 
    */
+  // 获取读写锁，该方法不会被MyBatis核心代码使用，所以可提供空实现
   ReadWriteLock getReadWriteLock();
 
 }

@@ -15,15 +15,15 @@
  */
 package org.apache.ibatis.transaction.jdbc;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import javax.sql.DataSource;
-
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.apache.ibatis.session.TransactionIsolationLevel;
 import org.apache.ibatis.transaction.Transaction;
 import org.apache.ibatis.transaction.TransactionException;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
 
 /**
  * {@link Transaction} that makes use of the JDBC commit and rollback facilities directly.
@@ -39,13 +39,18 @@ public class JdbcTransaction implements Transaction {
 
   private static final Log log = LogFactory.getLog(JdbcTransaction.class);
 
+  // 事务对应的数据库连接
   protected Connection connection;
+  // 数据库连接所属的DataSource
   protected DataSource dataSource;
+  // 事务隔离级别
   protected TransactionIsolationLevel level;
   // MEMO: We are aware of the typo. See #941
+  // 是否自动提交
   protected boolean autoCommmit;
 
   public JdbcTransaction(DataSource ds, TransactionIsolationLevel desiredLevel, boolean desiredAutoCommit) {
+    // 此处只是将相关设置参数记录下来而已，并没有设置到实际的Connection对象中
     dataSource = ds;
     level = desiredLevel;
     autoCommmit = desiredAutoCommit;
@@ -138,8 +143,10 @@ public class JdbcTransaction implements Transaction {
     }
     connection = dataSource.getConnection();
     if (level != null) {
+      // 此时才是真正的设置事务隔离级别
       connection.setTransactionIsolation(level.getLevel());
     }
+    // 自动提交设置
     setDesiredAutoCommit(autoCommmit);
   }
 

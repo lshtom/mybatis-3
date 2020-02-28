@@ -23,6 +23,7 @@ import java.util.Properties;
  * 
  * @author Clinton Begin
  */
+// 这也是【工厂方法模式】的应用
 public interface ObjectFactory {
 
   /**

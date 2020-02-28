@@ -15,6 +15,10 @@
  */
 package org.apache.ibatis.reflection;
 
+/**
+ * 说明：【工厂方法模式】的应用，此处定义一个工厂接口，然后工厂实现类实现该工厂接口，
+ * 但实际的代码开发中，直接面向工厂接口开发即可。
+ */
 public interface ReflectorFactory {
 
   boolean isClassCacheEnabled();

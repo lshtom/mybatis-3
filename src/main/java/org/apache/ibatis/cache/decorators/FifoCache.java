@@ -15,11 +15,11 @@
  */
 package org.apache.ibatis.cache.decorators;
 
+import org.apache.ibatis.cache.Cache;
+
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.concurrent.locks.ReadWriteLock;
-
-import org.apache.ibatis.cache.Cache;
 
 /**
  * FIFO (first in, first out) cache decorator
@@ -35,6 +35,7 @@ public class FifoCache implements Cache {
   public FifoCache(Cache delegate) {
     this.delegate = delegate;
     this.keyList = new LinkedList<Object>();
+    // 个人感觉这个地方MyBatis写得不好，1024应该定义为一个常量
     this.size = 1024;
   }
 
@@ -54,7 +55,9 @@ public class FifoCache implements Cache {
 
   @Override
   public void putObject(Object key, Object value) {
+    // 检测并清理缓存
     cycleKeyList(key);
+    // 添加缓存项
     delegate.putObject(key, value);
   }
 
@@ -82,6 +85,7 @@ public class FifoCache implements Cache {
   private void cycleKeyList(Object key) {
     keyList.addLast(key);
     if (keyList.size() > size) {
+      // 如果缓存达到上限，则清除最老得缓存
       Object oldestKey = keyList.removeFirst();
       delegate.removeObject(oldestKey);
     }

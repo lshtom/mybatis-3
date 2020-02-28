@@ -15,13 +15,10 @@
  */
 package org.apache.ibatis.io;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.logging.LogFactory;
+
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -30,9 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
-
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 
 /**
  * A default implementation of {@link VFS} that works for most application servers.
@@ -58,17 +52,25 @@ public class DefaultVFS extends VFS {
 
       // First, try to find the URL of a JAR file containing the requested resource. If a JAR
       // file is found, then we'll list child resources by reading the JAR.
+      // 如果url指向的资源在一个jar包中,则获取该jar包对应的URL,否则返回null
       URL jarUrl = findJarForResource(url);
+      // 情形一:先判断资源是不是在jar包中
       if (jarUrl != null) {
         is = jarUrl.openStream();
         if (log.isDebugEnabled()) {
           log.debug("Listing " + url);
         }
+        // 遍历jar包中的资源,并返回以path开头的资源列表
         resources = listResources(new JarInputStream(is), path);
       }
+      // 情形二:资源不在jar包中,那么有可能:
+      // 1)url中所指定的资源就是这jar包
+      // 2)url可能指向的是一个目录
       else {
         List<String> children = new ArrayList<String>();
         try {
+          // 如果url所指向的就是一个jar包(而不是上面的jar包中的资源),
+          // 则打开该jar包,直接获取其中的目录项并添加到children中.
           if (isJar(url)) {
             // Some versions of JBoss VFS might give a JAR stream even if the resource
             // referenced by the URL isn't actually a JAR
@@ -94,6 +96,7 @@ public class DefaultVFS extends VFS {
              * the class loader as a child of the current resource. If any line fails
              * then we assume the current resource is not a directory.
              */
+            // 遍历url所指向的目录,并将其下的资源名记录到children集合中
             is = url.openStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
             List<String> lines = new ArrayList<String>();
@@ -200,6 +203,7 @@ public class DefaultVFS extends VFS {
             log.debug("Found resource: " + name);
           }
           // Trim leading slash
+          // 去掉引导斜线/
           resources.add(name.substring(1));
         }
       }

@@ -15,12 +15,12 @@
  */
 package org.apache.ibatis.reflection.wrapper;
 
-import java.util.List;
-import java.util.Map;
-
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.ReflectionException;
 import org.apache.ibatis.reflection.property.PropertyTokenizer;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author Clinton Begin
@@ -34,6 +34,11 @@ public abstract class BaseWrapper implements ObjectWrapper {
     this.metaObject = metaObject;
   }
 
+  /**
+   * 这个方法是用于解析属性表达式，获取相应的集合对象实例
+   * 比如：orders[0]，对于这样的一个属性表达式，首先要解析出集合对象orders，
+   * 只要拿到了这orders，才能在后续调用下面的getCollectionValue来获取该集合对象中下标为0的元素。
+   */
   protected Object resolveCollection(PropertyTokenizer prop, Object object) {
     if ("".equals(prop.getName())) {
       return object;
@@ -42,10 +47,16 @@ public abstract class BaseWrapper implements ObjectWrapper {
     }
   }
 
+  /**
+   * 解析属性表达式的索引信息，并根据索引信息去获取集合的相应元素的值
+   * 比如，属性表达式orders[0]，那么索引信息为0，将获取orders集合的下标为0的元素
+   */
   protected Object getCollectionValue(PropertyTokenizer prop, Object collection) {
+    // 如果为Map类型，那么索引将为Key
     if (collection instanceof Map) {
       return ((Map) collection).get(prop.getIndex());
     } else {
+      // 否则，索引为相应集合的下标
       int i = Integer.parseInt(prop.getIndex());
       if (collection instanceof List) {
         return ((List) collection).get(i);

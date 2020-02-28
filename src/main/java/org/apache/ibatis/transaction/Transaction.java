@@ -31,6 +31,7 @@ public interface Transaction {
    * @return DataBase connection
    * @throws SQLException
    */
+  // 获取对应的数据库连接对象
   Connection getConnection() throws SQLException;
 
   /**
@@ -55,6 +56,7 @@ public interface Transaction {
    * Get transaction timeout if set
    * @throws SQLException
    */
+  // 获取事务超时时间
   Integer getTimeout() throws SQLException;
   
 }

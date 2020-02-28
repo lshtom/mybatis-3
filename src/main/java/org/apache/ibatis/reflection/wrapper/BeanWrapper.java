@@ -15,16 +15,12 @@
  */
 package org.apache.ibatis.reflection.wrapper;
 
-import java.util.List;
-
-import org.apache.ibatis.reflection.ExceptionUtil;
-import org.apache.ibatis.reflection.MetaClass;
-import org.apache.ibatis.reflection.MetaObject;
-import org.apache.ibatis.reflection.ReflectionException;
-import org.apache.ibatis.reflection.SystemMetaObject;
+import org.apache.ibatis.reflection.*;
 import org.apache.ibatis.reflection.factory.ObjectFactory;
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.apache.ibatis.reflection.property.PropertyTokenizer;
+
+import java.util.List;
 
 /**
  * @author Clinton Begin
@@ -42,10 +38,14 @@ public class BeanWrapper extends BaseWrapper {
 
   @Override
   public Object get(PropertyTokenizer prop) {
+    // 索引不为空，那么prop中的name肯定指向的是一个集合
     if (prop.getIndex() != null) {
+      // 步骤1：先根据属性表达式，获取到集合对象实例本身
       Object collection = resolveCollection(prop, object);
+      // 步骤2：拿到了集合对象实例，此处才接着解析获取集合中的某个元素
       return getCollectionValue(prop, collection);
     } else {
+      // 属性表达式中所指定的属性非集合，那么只需要获取到相应的Invoker方法然后调用即可
       return getBeanProperty(prop, object);
     }
   }

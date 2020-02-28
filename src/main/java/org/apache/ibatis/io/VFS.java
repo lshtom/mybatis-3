@@ -15,6 +15,9 @@
  */
 package org.apache.ibatis.io;
 
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.logging.LogFactory;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -23,9 +26,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 
 /**
  * Provides a very simple API for accessing resources within an application server.
@@ -36,12 +36,15 @@ public abstract class VFS {
   private static final Log log = LogFactory.getLog(VFS.class);
 
   /** The built-in implementations. */
+  // 记录两个VFS实现类
   public static final Class<?>[] IMPLEMENTATIONS = { JBoss6VFS.class, DefaultVFS.class };
 
   /** The list to which implementations are added by {@link #addImplClass(Class)}. */
+  // 记录用户自定义的VFS实现类
   public static final List<Class<? extends VFS>> USER_IMPLEMENTATIONS = new ArrayList<Class<? extends VFS>>();
 
   /** Singleton instance holder. */
+  // 说明:这是线程安全的单例模式,由类加载过程中的类加载器自动加上的锁来保证线程安全
   private static class VFSHolder {
     static final VFS INSTANCE = createVFS();
 
@@ -85,6 +88,8 @@ public abstract class VFS {
    * Get the singleton {@link VFS} instance. If no {@link VFS} implementation can be found for the
    * current environment, then this method returns null.
    */
+  // 只有当第一次访问getInstance方法(也就是此时才第一次方法内部类VFSHolder中的静态字段)才会触发静态内部类的加载,
+  // 而INSTANCE作为该静态内部类的静态字段,会伴随着该VFSHolder类的加载而执行初始化,也就是将调用createVFS方法创建VFS对象并赋值给INSTANCE静态字段.
   public static VFS getInstance() {
     return VFSHolder.INSTANCE;
   }

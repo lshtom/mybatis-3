@@ -25,11 +25,14 @@ import java.net.URL;
  */
 public class ClassLoaderWrapper {
 
+  // 记录应用指定的默认类加载器
   ClassLoader defaultClassLoader;
+  // SystemClassLoader（也叫ApplicationClassLoader）
   ClassLoader systemClassLoader;
 
   ClassLoaderWrapper() {
     try {
+      // 初始化
       systemClassLoader = ClassLoader.getSystemClassLoader();
     } catch (SecurityException ignored) {
       // AccessControlException on Google App Engine   
@@ -136,6 +139,8 @@ public class ClassLoaderWrapper {
    * @return the resource or null
    */
   URL getResourceAsURL(String resource, ClassLoader[] classLoader) {
+    // 说明：该方法的逻辑主要就是根据资源名去获取资源路径信息（URL），
+    // 其通过依次按顺序遍历类加载器来尝试获取资源。
 
     URL url;
 
@@ -202,6 +207,9 @@ public class ClassLoaderWrapper {
   }
 
   ClassLoader[] getClassLoaders(ClassLoader classLoader) {
+    // 虽然ClassLoader为抽象类，但注意了，此处new的是ClassLoader数组，
+    // 然后这个数组中已经包含了如下ClassLoader。
+    // Tips：MyBatis通过此处定义的数组就确定了类加载器的使用顺序
     return new ClassLoader[]{
         classLoader,
         defaultClassLoader,

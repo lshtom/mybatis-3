@@ -15,9 +15,9 @@
  */
 package org.apache.ibatis.reflection.property;
 
-import java.util.Locale;
-
 import org.apache.ibatis.reflection.ReflectionException;
+
+import java.util.Locale;
 
 /**
  * @author Clinton Begin
@@ -29,6 +29,8 @@ public final class PropertyNamer {
   }
 
   public static String methodToProperty(String name) {
+    // 说明：方法名转换为属性名，就是将方法名开头的“is”、“get”、“set”截掉，并将首字母小写
+
     if (name.startsWith("is")) {
       name = name.substring(2);
     } else if (name.startsWith("get") || name.startsWith("set")) {
@@ -45,6 +47,7 @@ public final class PropertyNamer {
   }
 
   public static boolean isProperty(String name) {
+    // 判断方法名是否对应属性名
     return name.startsWith("get") || name.startsWith("set") || name.startsWith("is");
   }
 

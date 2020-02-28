@@ -33,7 +33,9 @@ import java.util.Set;
  */
 public class MapperRegistry {
 
+  // Configuration对象，MyBatis全局唯一的配置对象，其中包含了所有的配置信息
   private final Configuration config;
+  // 记录了Mapper接口与对应MapperProxyFactory之间的关系
   private final Map<Class<?>, MapperProxyFactory<?>> knownMappers = new HashMap<Class<?>, MapperProxyFactory<?>>();
 
   public MapperRegistry(Configuration config) {
@@ -42,11 +44,13 @@ public class MapperRegistry {
 
   @SuppressWarnings("unchecked")
   public <T> T getMapper(Class<T> type, SqlSession sqlSession) {
+    // 根据Mapper接口类型获取相应的MapperProxyFactory对象，MapperProxyFactory是用于为Mapper接口生成代理
     final MapperProxyFactory<T> mapperProxyFactory = (MapperProxyFactory<T>) knownMappers.get(type);
     if (mapperProxyFactory == null) {
       throw new BindingException("Type " + type + " is not known to the MapperRegistry.");
     }
     try {
+      // 为Mapper接口创建代理对象
       return mapperProxyFactory.newInstance(sqlSession);
     } catch (Exception e) {
       throw new BindingException("Error getting mapper instance. Cause: " + e, e);
@@ -58,16 +62,20 @@ public class MapperRegistry {
   }
 
   public <T> void addMapper(Class<T> type) {
+    // 检测type是否为接口
     if (type.isInterface()) {
+      // 判断是否已经加载过该Mapper接口
       if (hasMapper(type)) {
         throw new BindingException("Type " + type + " is already known to the MapperRegistry.");
       }
       boolean loadCompleted = false;
       try {
+        // 将Mapper接口对应的Class对象和MapperProxyFactory对象添加到knownMappers集合中
         knownMappers.put(type, new MapperProxyFactory<T>(type));
         // It's important that the type is added before the parser is run
         // otherwise the binding may automatically be attempted by the
         // mapper parser. If the type is already known, it won't try.
+        // XML映射文件以及Mapper接口上注解信息的解析
         MapperAnnotationBuilder parser = new MapperAnnotationBuilder(config, type);
         parser.parse();
         loadCompleted = true;

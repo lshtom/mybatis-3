@@ -129,7 +129,9 @@ public final class LogFactory {
 
   private static void setImplementation(Class<? extends Log> implClass) {
     try {
+      // 获取有一个String类型参数的构造器（入参其实是所打印的日志所在的类名）
       Constructor<? extends Log> candidate = implClass.getConstructor(String.class);
+      // 根据获取到的构造器实例化相应的日志类（如Log4j、Log4j2等）
       Log log = candidate.newInstance(LogFactory.class.getName());
       if (log.isDebugEnabled()) {
         log.debug("Logging initialized using '" + implClass + "' adapter.");

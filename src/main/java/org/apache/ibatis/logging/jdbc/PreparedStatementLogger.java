@@ -15,15 +15,15 @@
  */
 package org.apache.ibatis.logging.jdbc;
 
+import org.apache.ibatis.logging.Log;
+import org.apache.ibatis.reflection.ExceptionUtil;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.reflection.ExceptionUtil;
 
 /**
  * PreparedStatement proxy to add logging
@@ -44,11 +44,15 @@ public final class PreparedStatementLogger extends BaseJdbcLogger implements Inv
   @Override
   public Object invoke(Object proxy, Method method, Object[] params) throws Throwable {
     try {
+      // 情形一：如果当前调用的是从Object继承过来的方法，则直接调用，不做任何处理
       if (Object.class.equals(method.getDeclaringClass())) {
         return method.invoke(this, params);
-      }          
+      }
+      // 情形二：调用了EXECUTE_METHODS集合、SET_METHODS集合中的方法
+      // 实现SQL参数日志打印的关键就是这了，一方面获取相应参数将进行日志输出，另一方面是继续调用原来的目标方法完成原来该完成的事情
       if (EXECUTE_METHODS.contains(method.getName())) {
         if (isDebugEnabled()) {
+          // 日志输出，输出的是参数值以及参数类型
           debug("Parameters: " + getParameterValueString(), true);
         }
         clearColumnInfo();

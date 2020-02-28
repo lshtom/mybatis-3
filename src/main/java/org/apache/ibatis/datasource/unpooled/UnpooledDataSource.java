@@ -15,30 +15,28 @@
  */
 package org.apache.ibatis.datasource.unpooled;
 
+import org.apache.ibatis.io.Resources;
+
+import javax.sql.DataSource;
 import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.Driver;
-import java.sql.DriverManager;
-import java.sql.DriverPropertyInfo;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import javax.sql.DataSource;
-
-import org.apache.ibatis.io.Resources;
-
 /**
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
 public class UnpooledDataSource implements DataSource {
-  
+
+  // 加载Driver类的类加载器
   private ClassLoader driverClassLoader;
+  // 数据库连接驱动相关配置
   private Properties driverProperties;
+  // 缓存所有已经注册的数据库连接驱动
   private static Map<String, Driver> registeredDrivers = new ConcurrentHashMap<String, Driver>();
 
   private String driver;
@@ -50,6 +48,13 @@ public class UnpooledDataSource implements DataSource {
   private Integer defaultTransactionIsolationLevel;
 
   static {
+    // 从DriverManager中获取所有的驱动
+    // Tips:之所以可以从DriverManager中获取到当前已经注册的驱动,
+    // 原因是在MySQL的驱动com.mysql.cj.jdbc包下的Driver类的静态代码块中,
+    // 指向了方法:DriverManager.registerDriver(new Driver());
+    // 这也是整个MySQL驱动加载的入口,
+    // 我们之所以在平时的开发中通过Class.forName("com.mysql.cj.jdbc.Driver")就完成了驱动的加载根源就在此,
+    // 利用了JVM在进行类加载时会执行static代码块的特点.
     Enumeration<Driver> drivers = DriverManager.getDrivers();
     while (drivers.hasMoreElements()) {
       Driver driver = drivers.nextElement();
@@ -204,6 +209,7 @@ public class UnpooledDataSource implements DataSource {
   }
 
   private synchronized void initializeDriver() throws SQLException {
+    // 如果所指定的数据库驱动尚未加载的话,则进行数据库驱动的加载
     if (!registeredDrivers.containsKey(driver)) {
       Class<?> driverType;
       try {
@@ -215,6 +221,8 @@ public class UnpooledDataSource implements DataSource {
         // DriverManager requires the driver to be loaded via the system ClassLoader.
         // http://www.kfu.com/~nsayer/Java/dyn-jdbc.html
         Driver driverInstance = (Driver)driverType.newInstance();
+        // Driver的静态代理
+        // 其实这里不是很明白，为啥还要注册驱动？比如对于像MySQL那样的驱动，其在类加载阶段就已经会注册到DriverManager中了，那此处的意义是什么呢？
         DriverManager.registerDriver(new DriverProxy(driverInstance));
         registeredDrivers.put(driver, driverInstance);
       } catch (Exception e) {
@@ -224,10 +232,13 @@ public class UnpooledDataSource implements DataSource {
   }
 
   private void configureConnection(Connection conn) throws SQLException {
-    if (autoCommit != null && autoCommit != conn.getAutoCommit()) {
+    if (
+        autoCommit != null && autoCommit != conn.getAutoCommit()) {
+      // 设置事务是否自动提交
       conn.setAutoCommit(autoCommit);
     }
     if (defaultTransactionIsolationLevel != null) {
+      // 设置隔离级别
       conn.setTransactionIsolation(defaultTransactionIsolationLevel);
     }
   }

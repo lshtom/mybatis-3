@@ -25,6 +25,7 @@ import org.slf4j.spi.LocationAwareLogger;
  * @author Clinton Begin
  * @author Eduardo Macarron
  */
+// 说明：这在【适配器模式】中扮演了Adapter角色，用于将Slf4j的接口适配到MyBatis中统一的日志接口Log
 public class Slf4jImpl implements Log {
 
   private Log log;
