@@ -15,8 +15,6 @@
  */
 package org.apache.ibatis.scripting.defaults;
 
-import java.util.HashMap;
-
 import org.apache.ibatis.builder.SqlSourceBuilder;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.SqlSource;
@@ -24,6 +22,8 @@ import org.apache.ibatis.scripting.xmltags.DynamicContext;
 import org.apache.ibatis.scripting.xmltags.DynamicSqlSource;
 import org.apache.ibatis.scripting.xmltags.SqlNode;
 import org.apache.ibatis.session.Configuration;
+
+import java.util.HashMap;
 
 /**
  * Static SqlSource. It is faster than {@link DynamicSqlSource} because mappings are 
@@ -37,12 +37,14 @@ public class RawSqlSource implements SqlSource {
   private final SqlSource sqlSource;
 
   public RawSqlSource(Configuration configuration, SqlNode rootSqlNode, Class<?> parameterType) {
+    // 此处调用了getSql方法从根SqlNode开始进行SQL片段的解析和SQL的拼装
     this(configuration, getSql(configuration, rootSqlNode), parameterType);
   }
 
   public RawSqlSource(Configuration configuration, String sql, Class<?> parameterType) {
     SqlSourceBuilder sqlSourceParser = new SqlSourceBuilder(configuration);
     Class<?> clazz = parameterType == null ? Object.class : parameterType;
+    // 此处会对SQL语句进行占位符#{}的替换和ParameterMapping集合的创建，并返回创建好的StaticSqlSource对象
     sqlSource = sqlSourceParser.parse(sql, clazz, new HashMap<String, Object>());
   }
 

@@ -20,6 +20,7 @@ import java.util.List;
 /**
  * @author Clinton Begin
  */
+// MixedSqlNode扮演了【组合模式】中树枝节点的角色，也就是说其可以持有其他叶子节点
 public class MixedSqlNode implements SqlNode {
   private final List<SqlNode> contents;
 

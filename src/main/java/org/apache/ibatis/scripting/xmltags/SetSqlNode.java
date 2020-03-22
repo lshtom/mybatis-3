@@ -15,10 +15,10 @@
  */
 package org.apache.ibatis.scripting.xmltags;
 
+import org.apache.ibatis.session.Configuration;
+
 import java.util.Arrays;
 import java.util.List;
-
-import org.apache.ibatis.session.Configuration;
 
 /**
  * @author Clinton Begin
@@ -28,6 +28,7 @@ public class SetSqlNode extends TrimSqlNode {
   private static List<String> suffixList = Arrays.asList(",");
 
   public SetSqlNode(Configuration configuration,SqlNode contents) {
+    // 如果<set>节点解析出的SQL片段以,结尾，则去掉,，并在SQL语句头上加上SET
     super(configuration, contents, "SET", null, null, suffixList);
   }
 

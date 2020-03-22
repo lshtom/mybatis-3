@@ -15,10 +15,10 @@
  */
 package org.apache.ibatis.scripting.xmltags;
 
+import org.apache.ibatis.session.Configuration;
+
 import java.util.Arrays;
 import java.util.List;
-
-import org.apache.ibatis.session.Configuration;
 
 /**
  * @author Clinton Begin
@@ -28,6 +28,7 @@ public class WhereSqlNode extends TrimSqlNode {
   private static List<String> prefixList = Arrays.asList("AND ","OR ","AND\n", "OR\n", "AND\r", "OR\r", "AND\t", "OR\t");
 
   public WhereSqlNode(Configuration configuration, SqlNode contents) {
+    // 如果<where>节点解析后的SQL语句片段以AND OR开头，则去掉，之后在SQL片段头上加上WHERE
     super(configuration, contents, "WHERE", prefixList, null, null);
   }
 

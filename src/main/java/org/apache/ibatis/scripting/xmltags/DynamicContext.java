@@ -15,20 +15,20 @@
  */
 package org.apache.ibatis.scripting.xmltags;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import ognl.OgnlContext;
 import ognl.OgnlException;
 import ognl.OgnlRuntime;
 import ognl.PropertyAccessor;
-
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.session.Configuration;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Clinton Begin
  */
+// 说明：用于记录解析动态SQL语句后产生的SQL语句片段
 public class DynamicContext {
 
   public static final String PARAMETER_OBJECT_KEY = "_parameter";
@@ -38,17 +38,21 @@ public class DynamicContext {
     OgnlRuntime.setPropertyAccessor(ContextMap.class, new ContextAccessor());
   }
 
+  // 参数上下文
   private final ContextMap bindings;
+  // 保存的是解析后的SQL语句片段，最终会拼出一条完整的SQL语句
   private final StringBuilder sqlBuilder = new StringBuilder();
   private int uniqueNumber = 0;
 
   public DynamicContext(Configuration configuration, Object parameterObject) {
     if (parameterObject != null && !(parameterObject instanceof Map)) {
+      // 对于非Map类型的对象，会创建对应的MetaObject对象
       MetaObject metaObject = configuration.newMetaObject(parameterObject);
       bindings = new ContextMap(metaObject);
     } else {
       bindings = new ContextMap(null);
     }
+    // 将parameterObject添加到bindings集合中（Key为“_parameter”）
     bindings.put(PARAMETER_OBJECT_KEY, parameterObject);
     bindings.put(DATABASE_ID_KEY, configuration.getDatabaseId());
   }
@@ -85,10 +89,12 @@ public class DynamicContext {
     @Override
     public Object get(Object key) {
       String strKey = (String) key;
+      // 判断是否已经包含该Key，包含了就直接返回
       if (super.containsKey(strKey)) {
         return super.get(strKey);
       }
 
+      // 这其实是从运行参数中获取相应的属性
       if (parameterMetaObject != null) {
         // issue #61 do not modify the context when reading
         return parameterMetaObject.getValue(strKey);

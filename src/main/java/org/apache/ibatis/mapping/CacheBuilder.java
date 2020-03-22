@@ -15,36 +15,39 @@
  */
 package org.apache.ibatis.mapping;
 
+import org.apache.ibatis.builder.InitializingObject;
+import org.apache.ibatis.cache.Cache;
+import org.apache.ibatis.cache.CacheException;
+import org.apache.ibatis.cache.decorators.*;
+import org.apache.ibatis.cache.impl.PerpetualCache;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.reflection.SystemMetaObject;
+
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.ibatis.cache.Cache;
-import org.apache.ibatis.cache.CacheException;
-import org.apache.ibatis.builder.InitializingObject;
-import org.apache.ibatis.cache.decorators.BlockingCache;
-import org.apache.ibatis.cache.decorators.LoggingCache;
-import org.apache.ibatis.cache.decorators.LruCache;
-import org.apache.ibatis.cache.decorators.ScheduledCache;
-import org.apache.ibatis.cache.decorators.SerializedCache;
-import org.apache.ibatis.cache.decorators.SynchronizedCache;
-import org.apache.ibatis.cache.impl.PerpetualCache;
-import org.apache.ibatis.reflection.MetaObject;
-import org.apache.ibatis.reflection.SystemMetaObject;
-
 /**
  * @author Clinton Begin
  */
 public class CacheBuilder {
+  // Cache对象的唯一标识，一般情况下就是映射配置文件的namespace
   private final String id;
+  // Cache接口的实现类，此处持有的是最底层的那个被装饰的Cache对象，一般默认就是PerpetualCache
   private Class<? extends Cache> implementation;
+  // 装饰器集合
   private final List<Class<? extends Cache>> decorators;
+  // Cache大小
   private Integer size;
+  // 清理时间周期
   private Long clearInterval;
+  // 是否可读写
   private boolean readWrite;
+  // 其他配置信息
   private Properties properties;
+  // 是否阻塞
   private boolean blocking;
 
   public CacheBuilder(String id) {
@@ -90,15 +93,21 @@ public class CacheBuilder {
   }
 
   public Cache build() {
+    // 如果implementation字段和decorators字段为空，则设置默认值
     setDefaultImplementations();
+    // 先创建出一个基础的Cache接口实现类对象（也就是装饰器链中最底层的那个被装饰的对象）
     Cache cache = newBaseCacheInstance(implementation, id);
+    // 其实就是将<cache>节点下配置的<property>信息，初始化Cache对象
     setCacheProperties(cache);
     // issue #352, do not apply decorators to custom caches
+    // 只有当Cache为PerpetualCache时才会使用装饰器链中的装饰器对其进行装饰，
+    // 这主要就是考虑了如果当前的Cache为自定义的话，就不自动装饰了。
     if (PerpetualCache.class.equals(cache.getClass())) {
       for (Class<? extends Cache> decorator : decorators) {
         cache = newCacheDecoratorInstance(decorator, cache);
         setCacheProperties(cache);
       }
+      // 添加MyBatis中提供的标准装饰器
       cache = setStandardDecorators(cache);
     } else if (!LoggingCache.class.isAssignableFrom(cache.getClass())) {
       cache = new LoggingCache(cache);
@@ -116,6 +125,7 @@ public class CacheBuilder {
   }
 
   private Cache setStandardDecorators(Cache cache) {
+    // 说明：主要就是根据各种配置值来决定使用相应的装饰器
     try {
       MetaObject metaCache = SystemMetaObject.forObject(cache);
       if (size != null && metaCache.hasSetter("size")) {
@@ -142,6 +152,7 @@ public class CacheBuilder {
   private void setCacheProperties(Cache cache) {
     if (properties != null) {
       MetaObject metaCache = SystemMetaObject.forObject(cache);
+      // 获取各属性配置，并设置到Cache中
       for (Map.Entry<Object, Object> entry : properties.entrySet()) {
         String name = (String) entry.getKey();
         String value = (String) entry.getValue();
@@ -176,6 +187,7 @@ public class CacheBuilder {
         }
       }
     }
+    // 如果还实现了InitializingObject接口，则回调InitializingObject的initialize方法
     if (InitializingObject.class.isAssignableFrom(cache.getClass())){
       try {
         ((InitializingObject) cache).initialize();

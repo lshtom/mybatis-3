@@ -18,6 +18,11 @@ package org.apache.ibatis.scripting.xmltags;
 /**
  * @author Clinton Begin
  */
+// SqlNode扮演了【组合模式】中抽象组件的角色
 public interface SqlNode {
+
+  // 该方法的作用是：根据用户所传入的实参，解析该SqlNode所记录的动态SQL节点，
+  // 并调用DynamicContext的appendSql()方法将解析后的SQL片段追加到sqlBuilder中存储。
+  // 当一个SQL节点下所有的SqlNode解析完成后，我们就可以从DynamicContext中获取到一条动态生成的、完整的SQL语句。
   boolean apply(DynamicContext context);
 }

@@ -20,8 +20,11 @@ import java.util.List;
 /**
  * @author Clinton Begin
  */
+// 对应<choose>节点
 public class ChooseSqlNode implements SqlNode {
+  // <otherwise>节点对应的SqlNode
   private final SqlNode defaultSqlNode;
+  // 对应的是<choose>节点下的一系列的<when>节点，每个<when>节点对应IfSqlNode
   private final List<SqlNode> ifSqlNodes;
 
   public ChooseSqlNode(List<SqlNode> ifSqlNodes, SqlNode defaultSqlNode) {

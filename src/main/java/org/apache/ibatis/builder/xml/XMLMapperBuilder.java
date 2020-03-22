@@ -15,44 +15,30 @@
  */
 package org.apache.ibatis.builder.xml;
 
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import org.apache.ibatis.builder.BaseBuilder;
-import org.apache.ibatis.builder.BuilderException;
-import org.apache.ibatis.builder.CacheRefResolver;
-import org.apache.ibatis.builder.IncompleteElementException;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
-import org.apache.ibatis.builder.ResultMapResolver;
+import org.apache.ibatis.builder.*;
 import org.apache.ibatis.cache.Cache;
 import org.apache.ibatis.executor.ErrorContext;
 import org.apache.ibatis.io.Resources;
-import org.apache.ibatis.mapping.Discriminator;
-import org.apache.ibatis.mapping.ParameterMapping;
-import org.apache.ibatis.mapping.ParameterMode;
-import org.apache.ibatis.mapping.ResultFlag;
-import org.apache.ibatis.mapping.ResultMap;
-import org.apache.ibatis.mapping.ResultMapping;
+import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.parsing.XPathParser;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
 
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.*;
+
 /**
  * @author Clinton Begin
  */
+// 说明：XMLConfigBuilder在使用XMLMapperBuilder时，其实是每解析一个XML映射配置文件就会创建一个XMLMapperBuilder对象，
+// 而XMLMapperBuilder中通过MapperBuilderAssistant持有了当前Mapper文件的namespace等信息。
 public class XMLMapperBuilder extends BaseBuilder {
 
   private final XPathParser parser;
+  // MapperBuilderAssistant是一个辅助类，用于创建Cache对象，并添加到Configuration.caches集合中保存
   private final MapperBuilderAssistant builderAssistant;
   private final Map<String, XNode> sqlFragments;
   private final String resource;
@@ -88,14 +74,31 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   public void parse() {
+    // 判断是否已经加载过该映射配置文件
     if (!configuration.isResourceLoaded(resource)) {
+      // 处理<mapper>节点
       configurationElement(parser.evalNode("/mapper"));
+      // 将resource添加到Configuration的loadedResources属性中保存，该属性是Set集合,只有将用于是否已经解析过该映射配置文件判断
       configuration.addLoadedResource(resource);
+      // 绑定Mapper接口，其逻辑其实是根据当前映射文件的命名空间去作为类的全限定名去寻找相应的Mapper接口，并解析和注册
       bindMapperForNamespace();
     }
 
+    /**
+     * 说明：在进行MyBatis映射配置文件解析的过程中，由于是按顺序从上往下解析的，
+     * 同时会存在前面节点引用了后面节点的内容的情况，
+     * 这时候这种依赖到后面节点的前面节点肯定是解析不成功的，
+     * MyBatis的做法是先将解析不成功的节点给缓存起来，
+     * 由于Configuration充当了一个全面的配置容器（所有节点解析出的配置信息都会放到Configuration中），
+     * 所以MyBatis的处理策略就是先跳过并记录下解析失败的节点，继续往后解析，最后再回头解析原先的那些解析失败了的节点，
+     * 而此时已经有了后面的那些节点的配置信息，所以前面的节点所依赖的信息已经是在Configuration中的了，这样就可以顺利解决原先失败了的问题。
+     */
+
+    // 处理configurationElement方法中解析失败的<resultMap>节点
     parsePendingResultMaps();
+    // 处理configurationElement方法中解析失败的<cache-ref>节点
     parsePendingCacheRefs();
+    // 处理configurationElement方法中解析失败的SQL语句节点
     parsePendingStatements();
   }
 
@@ -113,8 +116,11 @@ public class XMLMapperBuilder extends BaseBuilder {
       cacheRefElement(context.evalNode("cache-ref"));
       cacheElement(context.evalNode("cache"));
       parameterMapElement(context.evalNodes("/mapper/parameterMap"));
+      // 解析<resultMap>节点
       resultMapElements(context.evalNodes("/mapper/resultMap"));
+      // 解析<sql>节点
       sqlElement(context.evalNodes("/mapper/sql"));
+      // 解析<select>、<insert>、<update>、<delete>等节点
       buildStatementFromContext(context.evalNodes("select|insert|update|delete"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing Mapper XML. The XML location is '" + resource + "'. Cause: " + e, e);
@@ -129,7 +135,11 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private void buildStatementFromContext(List<XNode> list, String requiredDatabaseId) {
+    // 依次遍历解析<select>、<insert>、<update>、<delete>等节点
     for (XNode context : list) {
+      // 对于SQL语句不再是利用XMLMapperBuilder进行解析，而是利用XMLStatementBuilder进行解析，
+      // 每一个XMLStatementBuilder对象负责解析一个<select>或<insert>或<update>或<delete>等节点，
+      // 比如说当前的映射配置文件写有5个<select>，那么最终会创建的5个XMLStatementBuilder对象，依次去封装这5个<select>。
       final XMLStatementBuilder statementParser = new XMLStatementBuilder(configuration, builderAssistant, context, requiredDatabaseId);
       try {
         statementParser.parseStatementNode();
@@ -170,11 +180,13 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private void parsePendingStatements() {
+    // 获取incompleteStatements集合（解析失败的SQL语句集合）
     Collection<XMLStatementBuilder> incompleteStatements = configuration.getIncompleteStatements();
     synchronized (incompleteStatements) {
       Iterator<XMLStatementBuilder> iter = incompleteStatements.iterator();
       while (iter.hasNext()) {
         try {
+          // 重新解析SQL语句节点
           iter.next().parseStatementNode();
           iter.remove();
         } catch (IncompleteElementException e) {
@@ -186,9 +198,15 @@ public class XMLMapperBuilder extends BaseBuilder {
 
   private void cacheRefElement(XNode context) {
     if (context != null) {
+      // 将<cache-ref>存入cacheRefMap这样的HashMap中，
+      // 其中Key为<cache-ref>节点所在的映射配置文件的namespace，Value为<cache-ref>节点中配置的namespace，也就是要共享的Cache所在的namespace。
       configuration.addCacheRef(builderAssistant.getCurrentNamespace(), context.getStringAttribute("namespace"));
       CacheRefResolver cacheRefResolver = new CacheRefResolver(builderAssistant, context.getStringAttribute("namespace"));
       try {
+        // 其实内部就是直接使用了MapperBuilderAssistant的useCacheRef,
+        // 而XMLMapperBuilder与MapperBuilderAssistant是一一对应关系，
+        // MapperBuilderAssistant中又持有了currentCache,
+        // 也就相当于XMLMapperBuilder持有了当前的Cache对象.
         cacheRefResolver.resolveCacheRef();
       } catch (IncompleteElementException e) {
         configuration.addIncompleteCacheRef(cacheRefResolver);
@@ -199,6 +217,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   private void cacheElement(XNode context) throws Exception {
     if (context != null) {
       String type = context.getStringAttribute("type", "PERPETUAL");
+      // 查找type属性对应的Cache接口实现
       Class<? extends Cache> typeClass = typeAliasRegistry.resolveAlias(type);
       String eviction = context.getStringAttribute("eviction", "LRU");
       Class<? extends Cache> evictionClass = typeAliasRegistry.resolveAlias(eviction);
@@ -207,6 +226,7 @@ public class XMLMapperBuilder extends BaseBuilder {
       boolean readWrite = !context.getBooleanAttribute("readOnly", false);
       boolean blocking = context.getBooleanAttribute("blocking", false);
       Properties props = context.getChildrenAsProperties();
+      // useNewCache方法负责创建Cache对象，并添加到Configuration.caches集合中保存
       builderAssistant.useNewCache(typeClass, evictionClass, flushInterval, size, readWrite, blocking, props);
     }
   }
@@ -239,6 +259,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private void resultMapElements(List<XNode> list) throws Exception {
+    // 因为一个映射配置文件中可能写有多个<resultMap>节点，所以此处要遍历处理
     for (XNode resultMapNode : list) {
       try {
         resultMapElement(resultMapNode);
@@ -264,24 +285,31 @@ public class XMLMapperBuilder extends BaseBuilder {
     Boolean autoMapping = resultMapNode.getBooleanAttribute("autoMapping");
     Class<?> typeClass = resolveClass(type);
     Discriminator discriminator = null;
+    // <resultMap>标签下的每一个子节点都对应一个ResultMapping
     List<ResultMapping> resultMappings = new ArrayList<ResultMapping>();
     resultMappings.addAll(additionalResultMappings);
     List<XNode> resultChildren = resultMapNode.getChildren();
     for (XNode resultChild : resultChildren) {
+      // 处理<resultMap>标签下的<constructor>子节点
       if ("constructor".equals(resultChild.getName())) {
         processConstructorElement(resultChild, typeClass, resultMappings);
-      } else if ("discriminator".equals(resultChild.getName())) {
+      }
+      // 处理<resultMap>标签下的<discriminator>子节点
+      else if ("discriminator".equals(resultChild.getName())) {
         discriminator = processDiscriminatorElement(resultChild, typeClass, resultMappings);
       } else {
         List<ResultFlag> flags = new ArrayList<ResultFlag>();
+        // 处理<resultMap>标签下的<id>子节点
         if ("id".equals(resultChild.getName())) {
           flags.add(ResultFlag.ID);
         }
+        // 处理<resultMap>标签下的其他子节点(其中包括<result>)
         resultMappings.add(buildResultMappingFromContext(resultChild, typeClass, flags));
       }
     }
     ResultMapResolver resultMapResolver = new ResultMapResolver(builderAssistant, id, typeClass, extend, discriminator, resultMappings, autoMapping);
     try {
+      // 创建ResultMap对象,并添加到Configuration对象的resultMaps属性中
       return resultMapResolver.resolve();
     } catch (IncompleteElementException  e) {
       configuration.addIncompleteResultMap(resultMapResolver);
@@ -358,6 +386,7 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private ResultMapping buildResultMappingFromContext(XNode context, Class<?> resultType, List<ResultFlag> flags) throws Exception {
+    // 说明:主要是获取<result>等其他子节点中配置的各项属性
     String property;
     if (flags.contains(ResultFlag.CONSTRUCTOR)) {
       property = context.getStringAttribute("name");
@@ -380,6 +409,9 @@ public class XMLMapperBuilder extends BaseBuilder {
     @SuppressWarnings("unchecked")
     Class<? extends TypeHandler<?>> typeHandlerClass = (Class<? extends TypeHandler<?>>) resolveClass(typeHandler);
     JdbcType jdbcTypeEnum = resolveJdbcType(jdbcType);
+    // 根据上面获取到的配置/定义信息创建ResultMapping对象
+    // 个人感觉这个地方MyBatis写得不好,方法的入参也太多了,
+    // 应该将这些参数都封装成一个POJO类.
     return builderAssistant.buildResultMapping(resultType, property, column, javaTypeClass, jdbcTypeEnum, nestedSelect, nestedResultMap, notNullColumn, columnPrefix, typeHandlerClass, flags, resultSet, foreignColumn, lazy);
   }
   
@@ -396,15 +428,21 @@ public class XMLMapperBuilder extends BaseBuilder {
   }
 
   private void bindMapperForNamespace() {
+    // 获取当前映射配置文件的namespace
     String namespace = builderAssistant.getCurrentNamespace();
     if (namespace != null) {
       Class<?> boundType = null;
       try {
+        // 解析命名空间所对应的Mapper接口的类型
         boundType = Resources.classForName(namespace);
       } catch (ClassNotFoundException e) {
         //ignore, bound type is not required
       }
+      // 如果类型不为空,表示已经找到了相应的Mapper接口类型,那么接下来是进一步判断当前Mapper接口是否已经加载了
       if (boundType != null) {
+        // 如果判断没加载的话就进行Mapper接口的加载
+        // 因为有可能是先解析了Mapper接口才解析映射配置文件的，所以对于这种情况就是Mapper接口已经解析过了，
+        // 故此处要判断下是否已经解析过了Mapper接口
         if (!configuration.hasMapper(boundType)) {
           // Spring may not know the real resource name so we set a flag
           // to prevent loading again this resource from the mapper interface

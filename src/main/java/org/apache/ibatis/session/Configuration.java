@@ -587,6 +587,7 @@ public class Configuration {
   }
 
   public void addCache(Cache cache) {
+    // 记录了Cache的id（默认就是映射文件的namespace）与Cache对象
     caches.put(cache.getId(), cache);
   }
 
@@ -852,17 +853,22 @@ public class Configuration {
 
     @SuppressWarnings("unchecked")
     public V put(String key, V value) {
+      // 已经有了，则直接抛出异常
       if (containsKey(key)) {
         throw new IllegalArgumentException(name + " already contains value for " + key);
       }
+      // 按照"."切分，并取最后一项作为shortKey
       if (key.contains(".")) {
         final String shortKey = getShortName(key);
         if (super.get(shortKey) == null) {
+          // 正常情况1
           super.put(shortKey, value);
         } else {
+          // shortKey已存在，则修改为Ambiguity对象，表示存在二义性
           super.put(shortKey, (V) new Ambiguity(shortKey));
         }
       }
+      // 正常情况2
       return super.put(key, value);
     }
 
@@ -871,6 +877,7 @@ public class Configuration {
       if (value == null) {
         throw new IllegalArgumentException(name + " does not contain value for " + key);
       }
+      // 表示存在二义性，抛出异常
       if (value instanceof Ambiguity) {
         throw new IllegalArgumentException(((Ambiguity) value).getSubject() + " is ambiguous in " + name
             + " (try using the full name including the namespace, or rename one of the entries)");

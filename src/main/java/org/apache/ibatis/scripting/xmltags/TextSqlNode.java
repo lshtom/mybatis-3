@@ -15,16 +15,17 @@
  */
 package org.apache.ibatis.scripting.xmltags;
 
-import java.util.regex.Pattern;
-
 import org.apache.ibatis.parsing.GenericTokenParser;
 import org.apache.ibatis.parsing.TokenHandler;
 import org.apache.ibatis.scripting.ScriptingException;
 import org.apache.ibatis.type.SimpleTypeRegistry;
 
+import java.util.regex.Pattern;
+
 /**
  * @author Clinton Begin
  */
+// TextSqlNode扮演了最末级的叶子节点的角色
 public class TextSqlNode implements SqlNode {
   private final String text;
   private final Pattern injectionFilter;
@@ -47,12 +48,15 @@ public class TextSqlNode implements SqlNode {
 
   @Override
   public boolean apply(DynamicContext context) {
+    // GenericTokenParser类的parse方法会去掉${}，并回调BindingTokenParser类的handleToken方法进行占位符的解析，
+    // 并替换成相应的实参值。
     GenericTokenParser parser = createParser(new BindingTokenParser(context, injectionFilter));
     context.appendSql(parser.parse(text));
     return true;
   }
   
   private GenericTokenParser createParser(TokenHandler handler) {
+    // 解析${}占位符
     return new GenericTokenParser("${", "}", handler);
   }
 
@@ -68,14 +72,20 @@ public class TextSqlNode implements SqlNode {
 
     @Override
     public String handleToken(String content) {
+      // 获取用户传入的相应的实参
       Object parameter = context.getBindings().get("_parameter");
       if (parameter == null) {
         context.getBindings().put("value", null);
       } else if (SimpleTypeRegistry.isSimpleType(parameter.getClass())) {
+        // 如果参数的类型是简单类型的话，那就直接存入bindings中
         context.getBindings().put("value", parameter);
       }
+      // 通过OGNL解析content值,
+      // 也就是：对于${user.name}，去掉openToken和closeToken后为user.name，而bindings中保存有相应的实参值，
+      // 故下面这OgnlCache.getValue方法的解析过程就是将user.name替换成相应的实参值。
       Object value = OgnlCache.getValue(content, context.getBindings());
       String srtValue = (value == null ? "" : String.valueOf(value)); // issue #274 return "" instead of "null"
+      // 检测合法性
       checkInjection(srtValue);
       return srtValue;
     }

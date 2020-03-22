@@ -18,9 +18,13 @@ package org.apache.ibatis.scripting.xmltags;
 /**
  * @author Clinton Begin
  */
+// 对应动态SQL中的<if>节点
 public class IfSqlNode implements SqlNode {
+  // 用于解析<if>节点的test表达式的值
   private final ExpressionEvaluator evaluator;
+  // 记录了<if>节点的test表达式
   private final String test;
+  // 记录了<if>节点的子节点
   private final SqlNode contents;
 
   public IfSqlNode(SqlNode contents, String test) {
@@ -31,7 +35,9 @@ public class IfSqlNode implements SqlNode {
 
   @Override
   public boolean apply(DynamicContext context) {
+    // 首先是校验<if>节点的test表达式是否为true，只有为true才会去执行
     if (evaluator.evaluateBoolean(test, context.getBindings())) {
+      // test表达式为true，将执行<if>节点下的子节点
       contents.apply(context);
       return true;
     }

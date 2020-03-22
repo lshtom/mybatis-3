@@ -82,7 +82,9 @@ public class GenericTokenParser {
           builder.append(src, start, src.length - start);
           offset = src.length;
         } else {
-          // 回调handler的handleToken方法进行解析处理，得到字面值
+          // 回调handler的handleToken方法进行解析处理，得到字面值。
+          // 此处非常关键，对于ParameterMappingTokenHandler，其逻辑是将#{}替换为?,
+          // 并创建ParameterMapping对象加入到parameterMappings集合中。
           builder.append(handler.handleToken(expression.toString()));
           offset = end + closeToken.length();
         }

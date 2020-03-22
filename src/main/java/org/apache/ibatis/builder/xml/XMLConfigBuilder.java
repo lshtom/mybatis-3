@@ -15,11 +15,6 @@
  */
 package org.apache.ibatis.builder.xml;
 
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.Properties;
-import javax.sql.DataSource;
-
 import org.apache.ibatis.builder.BaseBuilder;
 import org.apache.ibatis.builder.BuilderException;
 import org.apache.ibatis.datasource.DataSourceFactory;
@@ -38,24 +33,36 @@ import org.apache.ibatis.reflection.MetaClass;
 import org.apache.ibatis.reflection.ReflectorFactory;
 import org.apache.ibatis.reflection.factory.ObjectFactory;
 import org.apache.ibatis.reflection.wrapper.ObjectWrapperFactory;
-import org.apache.ibatis.session.AutoMappingBehavior;
-import org.apache.ibatis.session.AutoMappingUnknownColumnBehavior;
-import org.apache.ibatis.session.Configuration;
-import org.apache.ibatis.session.ExecutorType;
-import org.apache.ibatis.session.LocalCacheScope;
+import org.apache.ibatis.session.*;
 import org.apache.ibatis.transaction.TransactionFactory;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
+
+import javax.sql.DataSource;
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.Properties;
 
 /**
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
+// 说明：一般上使用Mybatis的时候，都要写一个MyBatis配置文件mybatis-config.xml，
+// 同时还有若干的映射配置文件以及相应的Mapper接口，
+// 这一切的头其实是从mybatis-config.xml开始的（在这配置文件中进行各种MyBatis参数的配置，还包括映射文件的路径、mapper接口包名等的配置），
+// 解析这mybatis-config.xml配置文件主要是从<configuration>标签开始解析的，
+// 针对这<configuration>标签的解析就是利用了XMLConfigBuilder，
+// 在解析的过程中，对于映射配置文件（<mapper>标签）的解析则使用XMLMapperBuilder类，
+// XMLMapperBuilder类在解析<mapper>标签下的内容时对于SQL语句的解析则使用XMLStatementBuilder。
 public class XMLConfigBuilder extends BaseBuilder {
 
+  // 标识是否已经解析过mybatis-config.xml配置文件
   private boolean parsed;
+  // 用于解析mybatis-config.xml配置文件的XPathParser对象
   private final XPathParser parser;
+  // 标识<environment>配置的名称，默认读取<environment>标签的default属性
   private String environment;
+  // 负责创建和缓存Reflector对象
   private final ReflectorFactory localReflectorFactory = new DefaultReflectorFactory();
 
   public XMLConfigBuilder(Reader reader) {
@@ -83,6 +90,9 @@ public class XMLConfigBuilder extends BaseBuilder {
   }
 
   private XMLConfigBuilder(XPathParser parser, String environment, Properties props) {
+    // 说明：第一个入参XPathParser中封装了mybatis-config.xml配置文件的Reader，
+    // 同时创建Configuration对象，主调方SqlSessionFactoryBuilder调用了XMLConfigBuilder的parse方法后会获取到Configuration对象，
+    // 此时的Configuration对象中已经包含了解析出各种配置信息（来自配置文件）。
     super(new Configuration());
     ErrorContext.instance().resource("SQL Mapper Configuration");
     this.configuration.setVariables(props);
@@ -91,16 +101,29 @@ public class XMLConfigBuilder extends BaseBuilder {
     this.parser = parser;
   }
 
+  /**
+   * 解析mybatis-config.xml配置文件的入口
+   * 说明：这其实是【建造者模式】的使用，只是名字上不那么直观罢了，
+   * 所建造的其实是Configuration对象，
+   * 在parseConfiguration方法中又依次调用了各方法完成相应标签的解析并将解析结果填充到Configuration对象中，
+   * 这就相当于build方法中又依次调用具体的buildXXX方法进行各部分的建造。
+   * 启发：对于xxx解析处理（需要经过多个步骤的），比如经过xxx才能得到某某的这一类问题，
+   * 就可以去使用建造者模式，提供公有的build方法以及getProduct方法，
+   * 然后build方法中调用若干私有的buildPartX方法，
+   * 外部调用者只要先创建建造者对象，然后调用其build方法，再调用getProduct方法就可以得到所相应的对象（被建造的对象）了。
+   */
   public Configuration parse() {
     if (parsed) {
       throw new BuilderException("Each XMLConfigBuilder can only be used once.");
     }
     parsed = true;
+    // 在XML配置文件中查找<configuration>节点
     parseConfiguration(parser.evalNode("/configuration"));
     return configuration;
   }
 
   private void parseConfiguration(XNode root) {
+    // 说明：依次解析<configuration>标签下的各个子节点
     try {
       //issue #117 read properties first
       propertiesElement(root.evalNode("properties"));
@@ -116,6 +139,7 @@ public class XMLConfigBuilder extends BaseBuilder {
       environmentsElement(root.evalNode("environments"));
       databaseIdProviderElement(root.evalNode("databaseIdProvider"));
       typeHandlerElement(root.evalNode("typeHandlers"));
+      // 解析<mappers>节点，该节点的内容主要是指明Mybatis应该去哪些位置去查找映射配置文件，以及使用了@Mapper注解标注的接口
       mapperElement(root.evalNode("mappers"));
     } catch (Exception e) {
       throw new BuilderException("Error parsing SQL Mapper Configuration. Cause: " + e, e);
@@ -215,9 +239,12 @@ public class XMLConfigBuilder extends BaseBuilder {
 
   private void propertiesElement(XNode context) throws Exception {
     if (context != null) {
+      // 解析<properties>的子节点（获取<property>标签）的name和value属性，并记录到Properties中
       Properties defaults = context.getChildrenAsProperties();
+      // 解析<properties>的resource和url属性
       String resource = context.getStringAttribute("resource");
       String url = context.getStringAttribute("url");
+      // 两者不能同时存在，否则抛出异常
       if (resource != null && url != null) {
         throw new BuilderException("The properties element cannot specify both a URL and a resource based property file reference.  Please specify one or the other.");
       }
@@ -226,10 +253,12 @@ public class XMLConfigBuilder extends BaseBuilder {
       } else if (url != null) {
         defaults.putAll(Resources.getUrlAsProperties(url));
       }
+      // 与Configuration对象中的variables集合合并
       Properties vars = configuration.getVariables();
       if (vars != null) {
         defaults.putAll(vars);
       }
+      // 更新XPathParser和Configuration的variables字段
       parser.setVariables(defaults);
       configuration.setVariables(defaults);
     }
@@ -357,10 +386,20 @@ public class XMLConfigBuilder extends BaseBuilder {
   }
 
   private void mapperElement(XNode parent) throws Exception {
+    // 说明：该方法是Mapper接口、映射配置文件解析的总入口，
+    // 进行Maper接口和映射配置文件解析有两个方向：
+    // 1）方向1：读取Mybatis配置文件中<mappers>标签下的<mapper>标签的resource或url属性（这些属性都是指向映射配置文件的路径），
+    // 先进行映射配置文件的读取解析，然后根据namespace来找到相应的Mapper接口并进行解析，这种方式下映射配置文件名与mapper接口名不同并不影响绑定；
+    // 2）方向2：读取Mybatis配置文件中<mappers>标签下的<package>标签的name属性或者<mapper>标签的class属性（这些属性都是指向Mapper接口的全路径名），
+    // 先找到接口并进行Mapper接口的解析，然后根据Mapper接口的全路径名去反推出相应的映射配置文件路径，并找到进行加载解析，
+    // 这种方式下映射配置文件名需要与Maper接口名相同，否则会绑定失败。
+
     if (parent != null) {
       for (XNode child : parent.getChildren()) {
         if ("package".equals(child.getName())) {
+          // 获取Mapper接口所在的包名
           String mapperPackage = child.getStringAttribute("name");
+          // 扫描该包下的Mapper接口，并注册到MapperRegistry中
           configuration.addMappers(mapperPackage);
         } else {
           String resource = child.getStringAttribute("resource");
@@ -368,15 +407,19 @@ public class XMLConfigBuilder extends BaseBuilder {
           String mapperClass = child.getStringAttribute("class");
           if (resource != null && url == null && mapperClass == null) {
             ErrorContext.instance().resource(resource);
+            // 创建XMLMapperBuilder对象，获取Mapper配置文件并进行解析
             InputStream inputStream = Resources.getResourceAsStream(resource);
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, resource, configuration.getSqlFragments());
             mapperParser.parse();
           } else if (resource == null && url != null && mapperClass == null) {
             ErrorContext.instance().resource(url);
+            // 创建XMLMapperBuilder对象，获取Mapper配置文件并进行解析
             InputStream inputStream = Resources.getUrlAsStream(url);
+            // XMLMapperBuilder也是【建造者模式】的应用，XMLMapperBuilder的parse方法中封装了解析映射配置文件的细节
             XMLMapperBuilder mapperParser = new XMLMapperBuilder(inputStream, configuration, url, configuration.getSqlFragments());
             mapperParser.parse();
           } else if (resource == null && url == null && mapperClass != null) {
+            // 获取Mapper接口，并注册到MapperRegistry中
             Class<?> mapperInterface = Resources.classForName(mapperClass);
             configuration.addMapper(mapperInterface);
           } else {

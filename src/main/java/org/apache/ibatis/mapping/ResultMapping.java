@@ -15,27 +15,34 @@
  */
 package org.apache.ibatis.mapping;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+
 /**
  * @author Clinton Begin
  */
+// 说明:一个ResultMapping对应数据库查询结果集中的一列以及JavaBean中的一个属性,
+// 所以其中记录了结果集中当前列的信息以及JavaBean中当前属性的信息,
+// 可以理解是<resultMap>标签中的各子节点.
 public class ResultMapping {
 
   private Configuration configuration;
+  // 表示与该列进行映射的属性(就是JavaBean的一个属性)
   private String property;
+  // 对应节点的Column属性,表示从数据库中得到的列名或是列的别名
   private String column;
   private Class<?> javaType;
   private JdbcType jdbcType;
   private TypeHandler<?> typeHandler;
+  // 对应节点的<resultMap>属性,该属性通过id引用另外一个<resultMap>节点定义,
+  // 负责将结果集的一部分列映射成其他关联的结果对象.
   private String nestedResultMapId;
   private String nestedQueryId;
   private Set<String> notNullColumns;

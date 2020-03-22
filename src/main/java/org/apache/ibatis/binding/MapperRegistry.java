@@ -77,6 +77,7 @@ public class MapperRegistry {
         // mapper parser. If the type is already known, it won't try.
         // XML映射文件以及Mapper接口上注解信息的解析
         MapperAnnotationBuilder parser = new MapperAnnotationBuilder(config, type);
+        // 解析Mapper接口上的注解信息，并由接口全路径去找到相应的映射配置文件并进行解析处理
         parser.parse();
         loadCompleted = true;
       } finally {

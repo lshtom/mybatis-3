@@ -15,13 +15,13 @@
  */
 package org.apache.ibatis.mapping;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.property.PropertyTokenizer;
 import org.apache.ibatis.session.Configuration;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * An actual SQL String got from an {@link SqlSource} after having processed any dynamic content.
@@ -33,11 +33,16 @@ import org.apache.ibatis.session.Configuration;
  *
  * @author Clinton Begin
  */
+// 说明：BoundSql对象中封装了完整的SQL语句（可能包换?占位符）,
+// 以及参数映射关系集合parameterMappings，
+// 以及用于传入的参数集合additionalParameters。
 public class BoundSql {
 
+  // 记录了SQL语句，该SQL语句中可能会含有"?"占位符
   private final String sql;
   private final List<ParameterMapping> parameterMappings;
   private final Object parameterObject;
+  // 空的HashMap，后面会复制DynamicContext.bindings集合中的内容
   private final Map<String, Object> additionalParameters;
   private final MetaObject metaParameters;
 

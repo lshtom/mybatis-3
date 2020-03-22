@@ -15,12 +15,12 @@
  */
 package org.apache.ibatis.mapping;
 
-import java.sql.ResultSet;
-
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
+
+import java.sql.ResultSet;
 
 /**
  * @author Clinton Begin
@@ -29,10 +29,13 @@ public class ParameterMapping {
 
   private Configuration configuration;
 
+  // 餐宿的名称
   private String property;
+  // 是输入参数还是输出参数
   private ParameterMode mode;
   private Class<?> javaType = Object.class;
   private JdbcType jdbcType;
+  // 浮点参数的精度
   private Integer numericScale;
   private TypeHandler<?> typeHandler;
   private String resultMapId;

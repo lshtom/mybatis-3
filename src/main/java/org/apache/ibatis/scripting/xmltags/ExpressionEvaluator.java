@@ -15,13 +15,13 @@
  */
 package org.apache.ibatis.scripting.xmltags;
 
+import org.apache.ibatis.builder.BuilderException;
+
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.ibatis.builder.BuilderException;
 
 /**
  * @author Clinton Begin
@@ -29,10 +29,12 @@ import org.apache.ibatis.builder.BuilderException;
 public class ExpressionEvaluator {
 
   public boolean evaluateBoolean(String expression, Object parameterObject) {
+    // 首先通过OGNL解析表达式的值
     Object value = OgnlCache.getValue(expression, parameterObject);
     if (value instanceof Boolean) {
       return (Boolean) value;
     }
+    // 处理数值类型
     if (value instanceof Number) {
       return new BigDecimal(String.valueOf(value)).compareTo(BigDecimal.ZERO) != 0;
     }

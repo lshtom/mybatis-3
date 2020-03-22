@@ -15,11 +15,6 @@
  */
 package org.apache.ibatis.builder;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.regex.Pattern;
-
 import org.apache.ibatis.mapping.ParameterMode;
 import org.apache.ibatis.mapping.ResultSetType;
 import org.apache.ibatis.session.Configuration;
@@ -28,12 +23,20 @@ import org.apache.ibatis.type.TypeAliasRegistry;
 import org.apache.ibatis.type.TypeHandler;
 import org.apache.ibatis.type.TypeHandlerRegistry;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.regex.Pattern;
+
 /**
  * @author Clinton Begin
  */
 public abstract class BaseBuilder {
+  // 保存所有的配置信息，该对象只是在MyBatis初始化过程中创建且全局唯一
   protected final Configuration configuration;
+  // 类型别名注册器，如果在Mybatis配置文件中使用<typeAliases>标签定义别名时，这些别名会注册到TypeAliasRegistry中
   protected final TypeAliasRegistry typeAliasRegistry;
+  // 在配置文件中可以使用<typeHandlers>标签添加自定义的TypeHandler，这个TypeHandler会被注册到TypeHandlerRegistry中
   protected final TypeHandlerRegistry typeHandlerRegistry;
 
   public BaseBuilder(Configuration configuration) {

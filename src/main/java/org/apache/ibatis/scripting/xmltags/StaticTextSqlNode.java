@@ -18,6 +18,8 @@ package org.apache.ibatis.scripting.xmltags;
 /**
  * @author Clinton Begin
  */
+// StaticTextSqlNode对应的是静态（非动态的）SQL片段，
+// 所以其实现的apply方法就是简单的将SQL语句添加到DynamicContext中。
 public class StaticTextSqlNode implements SqlNode {
   private final String text;
 
